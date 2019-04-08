@@ -1,13 +1,13 @@
 /*
- * main.c
- *
- * Created: 05/03/2019 18:00:58
- *  Author: eduardo
- */
+* main.c
+*
+* Created: 05/03/2019 18:00:58
+*  Author: eduardo
+*/
 
- /************************************************************************/
- /* includes                                                             */
- /************************************************************************/
+/************************************************************************/
+/* includes                                                             */
+/************************************************************************/
 
 #include <asf.h>
 #include "tfont.h"
@@ -81,8 +81,8 @@ volatile Bool but_status;
 
 volatile Bool f_rtt_alarme = false;
 
-botao BUT1 = {.PIO_NAME = PIOA, .PIO_ID = ID_PIOA, .PIO_IDX = 11u, .PIO_MASK = (1u << 11u), .BUT_NUM = '1'};
-botao BUT2 = {.PIO_NAME = PIOC, .PIO_ID = ID_PIOC, .PIO_IDX = 30u, .PIO_MASK = (1u << 30u), .BUT_NUM = '2'};
+botao BUT1 = {.PIO_NAME = PIOA, .PIO_ID = ID_PIOA, .PIO_IDX = 11u, .PIO_MASK = (1u << 11u), .BUT_NUM = '1'}; //botao placa para reset
+botao BUT2 = {.PIO_NAME = PIOB, .PIO_ID = ID_PIOB, .PIO_IDX = 2u, .PIO_MASK = (1u << 2u), .BUT_NUM = '2'}; //sensor
 botao BUT3 = {.PIO_NAME = PIOA, .PIO_ID = ID_PIOA, .PIO_IDX = 3u, .PIO_MASK = (1u << 3u), .BUT_NUM = '3'};
 
 
@@ -124,9 +124,9 @@ void RTT_Handler(void)
 
 void pin_toggle(Pio *pio, uint32_t mask) {
 	if (pio_get_output_data_status(pio, mask))
-		pio_clear(pio, mask);
+	pio_clear(pio, mask);
 	else
-		pio_set(pio, mask);
+	pio_set(pio, mask);
 }
 
 
@@ -178,8 +178,6 @@ void but3_callback(void)
 	else
 	but_status = LIBERADO;
 }
-
-
 
 void iniciabots(botao BOT, p_handler *funcao){
 	
@@ -237,39 +235,49 @@ int main(void) {
 	int banana = 0;
 	long tempo_total = 0;
 	long revolucoes = 0;
+	long revolucoes_insta = 0;
+	float vel_max = 0;
+	long idle=0;
 
 	f_rtt_alarme = true;
 
-	font_draw_text(&sourcecodepro_28, "OIMUNDO", 50, 50, 1);
-	font_draw_text(&arial_72, "102456", 50, 200, 2);
+	
 
 	while (1) {
 		if(BUT1.but_flag) {
 			revolucoes++;
+			revolucoes_insta++;
 			BUT1.but_flag = false;
+			idle=0;
 		}
+		if(BUT2.but_flag) {
+			revolucoes=0;
+			tempo_total=0; //botao para reiniciar
+			BUT2.but_flag = false;
+		}
+		
 		
 		if (f_rtt_alarme) {
 
 			/*
-			 * O clock base do RTT é 32678Hz
-			 * Para gerar outra base de tempo é necessário
-			 * usar o PLL pre scale, que divide o clock base.
-			 *
-			 * Nesse exemplo, estamos operando com um clock base
-			 * de pllPreScale = 32768/32768/2 = 2Hz
-			 *
-			 * Quanto maior a frequência maior a resolução, porém
-			 * menor o tempo máximo que conseguimos contar.
-			 *
-			 * Podemos configurar uma IRQ para acontecer quando
-			 * o contador do RTT atingir um determinado valor
-			 * aqui usamos o irqRTTvalue para isso.
-			 *
-			 * Nesse exemplo o irqRTTvalue = 8, causando uma
-			 * interrupção a cada 2 segundos (lembre que usamos o
-			 * pllPreScale, cada incremento do RTT leva 500ms (2Hz).
-			 */
+			* O clock base do RTT é 32678Hz
+			* Para gerar outra base de tempo é necessário
+			* usar o PLL pre scale, que divide o clock base.
+			*
+			* Nesse exemplo, estamos operando com um clock base
+			* de pllPreScale = 32768/32768/2 = 2Hz
+			*
+			* Quanto maior a frequência maior a resolução, porém
+			* menor o tempo máximo que conseguimos contar.
+			*
+			* Podemos configurar uma IRQ para acontecer quando
+			* o contador do RTT atingir um determinado valor
+			* aqui usamos o irqRTTvalue para isso.
+			*
+			* Nesse exemplo o irqRTTvalue = 8, causando uma
+			* interrupção a cada 2 segundos (lembre que usamos o
+			* pllPreScale, cada incremento do RTT leva 500ms (2Hz).
+			*/
 			uint16_t pllPreScale = (int)(((float)32768) / 2.0);
 			uint32_t irqRTTvalue = 4;
 
@@ -277,37 +285,67 @@ int main(void) {
 			RTT_init(pllPreScale, irqRTTvalue);
 
 			/*
-			 * caso queira ler o valor atual do RTT, basta usar a funcao
-			 *   rtt_read_timer_value()
-			 */
+			* caso queira ler o valor atual do RTT, basta usar a funcao
+			*   rtt_read_timer_value()
+			*/
 
-			 /*
-			  * CLEAR FLAG
-			  */
+			/*
+			* CLEAR FLAG
+			*/
 			if (banana){
-				
-				char tempo[12];
-				tempo_total+=2;
-				sprintf(tempo, "t_total:%ds ",  tempo_total);
-				font_draw_text(&calibri_36, tempo, 10, 100, 1); // + 36 sempre -> \n
-				
+				font_draw_text(&sourcecodepro_28, "NAOMUNDO", 50, 50, 1);
 				banana=!banana;
-			} else {
-				char tempo[12];
-				sprintf(tempo, "t_tot:%d  ",  tempo_total);
-				tempo_total+=2;
-				font_draw_text(&calibri_36, tempo, 10, 100, 1); // + 36 sempre -> \n
-				sprintf(tempo, "d_tot:%f m ",  revolucoes*2*0.325*PI);
-				font_draw_text(&calibri_36, tempo, 10 , 100+ 36*1, 1); // + 36 sempre -> \n
-				sprintf(tempo, "vel_m:%f m/s ",  (revolucoes*2*0.325*PI)/tempo_total);
-				font_draw_text(&calibri_36, tempo, 10 , 100+ 36*2, 1); // + 36 sempre -> \n
+				} else {
+				font_draw_text(&sourcecodepro_28, "SIMMUNDO", 50, 50, 1);
 				banana = !banana;
 			}
+			
+			if (idle<=20){
+				char tempo[12];
+				sprintf(tempo, "%d:%d:%d  ",  tempo_total/3600, (tempo_total%3600)/60, tempo_total%3600);
+				
+				font_draw_text(&calibri_36, tempo, 10, 100-36, 1); // + 36 sempre -> \n
+				sprintf(tempo, "t_t:%d  ",  tempo_total);
+				tempo_total+=2;
+				idle+=2;
+				font_draw_text(&calibri_36, tempo, 10, 100, 1); // + 36 sempre -> \n
+				sprintf(tempo, "d_t:%f m ",  revolucoes*2*0.325*PI);
+				font_draw_text(&calibri_36, tempo, 10 , 100+ 36*1, 1); // + 36 sempre -> \n
+				sprintf(tempo, "v_me:%f km/h ",  ((revolucoes*2*0.325*PI)/tempo_total)*3.6);
+				font_draw_text(&calibri_36, tempo, 10 , 100+ 36*2, 1); // + 36 sempre -> \n
+				sprintf(tempo, "v_i:%f m/s ",  (revolucoes_insta*2*0.325*PI)/2);
+				font_draw_text(&calibri_36, tempo, 10 , 100+ 36*3, 1); // + 36 sempre -> \n
+				if ((revolucoes_insta*2*0.325*PI)/2 > vel_max){
+					vel_max = (revolucoes_insta*2*0.325*PI)/2;
+					font_draw_text(&calibri_36, "+vel acelerando      ", 10 , 100+ 36*4, 1); // + 36 sempre -> \n
+					} else {
+					font_draw_text(&calibri_36, "-vel desacelerando   ", 10 , 100+ 36*4, 1); // + 36 sempre -> \n !!ta errado
+				}
+				sprintf(tempo, "v_max:%f m/s ",  vel_max);
+				font_draw_text(&calibri_36, tempo, 10 , 100+ 36*3, 1); // + 36 sempre -> \n
+				revolucoes_insta =0;
+				
+			} else {
+				//paro a contagem
+				//desligar LCD? nao sei
+				font_draw_text(&calibri_36, "IDLE                      ", 10 , 100- 36*1, 1); // + 36 sempre -> \n
+				font_draw_text(&calibri_36, "IDLE                      ", 10 , 100+ 36*0, 1); // + 36 sempre -> \n
+				font_draw_text(&calibri_36, "IDLE                      ", 10 , 100+ 36*1, 1); // + 36 sempre -> \n
+				font_draw_text(&calibri_36, "IDLE                      ", 10 , 100+ 36*2, 1); // + 36 sempre -> \n
+				font_draw_text(&calibri_36, "IDLE                      ", 10 , 100+ 36*3, 1); // + 36 sempre -> \n
+				font_draw_text(&calibri_36, "IDLE                      ", 10 , 100+ 36*4, 1); // + 36 sempre -> \n
+				
+			}
+			
+			
+			
+			
 			
 			
 
 			f_rtt_alarme = false;
 		}
+		pmc_sleep(SAM_PM_SMODE_SLEEP_WFI);
 		
 		
 
