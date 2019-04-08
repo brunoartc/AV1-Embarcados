@@ -14,6 +14,7 @@
 #include "sourcecodepro_28.h"
 #include "calibri_36.h"
 #include "arial_72.h"
+#include "math.h"
 
 
 
@@ -55,10 +56,19 @@ void font_draw_text(tFont *font, const char *text, int x, int y, int spacing) {
 /* defines                                                              */
 /************************************************************************/
 
-#define LED_PIO       PIOC
-#define LED_PIO_ID    ID_PIOC
-#define LED_IDX       8u
-#define LED_IDX_MASK  (1u << LED_IDX)
+#define APERTADO '1'
+#define LIBERADO '0'
+
+typedef void (*p_handler) (uint32_t, uint32_t);
+
+typedef struct {
+	uint32_t PIO_NAME;
+	uint32_t PIO_ID;
+	uint32_t PIO_IDX;
+	uint32_t PIO_MASK;
+	volatile Bool but_flag;
+	char BUT_NUM;
+} botao;
 
 /************************************************************************/
 /* constants                                                            */
@@ -67,7 +77,14 @@ void font_draw_text(tFont *font, const char *text, int x, int y, int spacing) {
 /************************************************************************/
 /* variaveis globais                                                    */
 /************************************************************************/
+volatile Bool but_status;
+
 volatile Bool f_rtt_alarme = false;
+
+botao BUT1 = {.PIO_NAME = PIOA, .PIO_ID = ID_PIOA, .PIO_IDX = 11u, .PIO_MASK = (1u << 11u), .BUT_NUM = '1'};
+botao BUT2 = {.PIO_NAME = PIOC, .PIO_ID = ID_PIOC, .PIO_IDX = 30u, .PIO_MASK = (1u << 30u), .BUT_NUM = '2'};
+botao BUT3 = {.PIO_NAME = PIOA, .PIO_ID = ID_PIOA, .PIO_IDX = 3u, .PIO_MASK = (1u << 3u), .BUT_NUM = '3'};
+
 
 /************************************************************************/
 /* prototypes                                                           */
@@ -112,12 +129,6 @@ void pin_toggle(Pio *pio, uint32_t mask) {
 		pio_set(pio, mask);
 }
 
-void io_init(void) {
-	/* led */
-	pmc_enable_periph_clk(LED_PIO_ID);
-	pio_configure(LED_PIO, PIO_OUTPUT_0, LED_IDX_MASK, PIO_DEFAULT);
-}
-
 
 
 static void RTT_init(uint16_t pllPreScale, uint32_t IrqNPulses)
@@ -141,9 +152,79 @@ static void RTT_init(uint16_t pllPreScale, uint32_t IrqNPulses)
 	rtt_enable_interrupt(RTT, RTT_MR_ALMIEN);
 }
 
+void but1_callback(void)
+{
+	BUT1.but_flag = true;
+	if(!pio_get(BUT1.PIO_NAME, PIO_INPUT, BUT1.PIO_MASK))
+	but_status = APERTADO;
+	else
+	but_status = LIBERADO;
+}
+
+void but2_callback(void)
+{
+	BUT2.but_flag = true;
+	if(!pio_get(BUT2.PIO_NAME, PIO_INPUT, BUT2.PIO_MASK))
+	but_status = APERTADO;
+	else
+	but_status = LIBERADO;
+}
+
+void but3_callback(void)
+{
+	BUT3.but_flag = true;
+	if(!pio_get(BUT3.PIO_NAME, PIO_INPUT, BUT3.PIO_MASK))
+	but_status = APERTADO;
+	else
+	but_status = LIBERADO;
+}
+
+
+
+void iniciabots(botao BOT, p_handler *funcao){
+	
+	pio_configure(BOT.PIO_NAME, PIO_INPUT, BOT.PIO_MASK, PIO_PULLUP|PIO_DEBOUNCE);
+	pio_set_debounce_filter(BOT.PIO_NAME, BOT.PIO_MASK, 60);
+
+	// Configura interrupção no pino referente ao botao e associa
+	// função de callback caso uma interrupção for gerada
+	// a função de callback é a: but_callback()
+	pio_handler_set(BOT.PIO_NAME,
+	BOT.PIO_ID,
+	BOT.PIO_MASK,
+	PIO_IT_FALL_EDGE,
+	funcao);
+
+	// Ativa interrupção
+	pio_enable_interrupt(BOT.PIO_NAME, BOT.PIO_MASK);
+
+	// Configura NVIC para receber interrupcoes do PIO do botao
+	// com prioridade 4 (quanto mais próximo de 0 maior)
+	NVIC_EnableIRQ(BOT.PIO_ID);
+	NVIC_SetPriority(BOT.PIO_ID, 4); // Prioridade 4
+
+}
+
+
+
+
+void io_init(void)
+{
+	
+	iniciabots(BUT1, but1_callback);
+	iniciabots(BUT2, but2_callback);
+	iniciabots(BUT3, but3_callback);
+
+}
+
+
+
+
 /************************************************************************/
 /* Main                                                                 */
 /************************************************************************/
+
+
 
 
 
@@ -152,8 +233,10 @@ int main(void) {
 	board_init();
 	sysclk_init();
 	configure_lcd();
+	io_init();
 	int banana = 0;
 	long tempo_total = 0;
+	long revolucoes = 0;
 
 	f_rtt_alarme = true;
 
@@ -161,6 +244,11 @@ int main(void) {
 	font_draw_text(&arial_72, "102456", 50, 200, 2);
 
 	while (1) {
+		if(BUT1.but_flag) {
+			revolucoes++;
+			BUT1.but_flag = false;
+		}
+		
 		if (f_rtt_alarme) {
 
 			/*
@@ -199,20 +287,29 @@ int main(void) {
 			if (banana){
 				
 				char tempo[12];
-				tempo_total++;
-				sprintf(tempo, "totP:%d",  tempo_total);
-				font_draw_text(&calibri_36, tempo, 50, 100, 1); // + 36 sempre -> \n
+				tempo_total+=2;
+				sprintf(tempo, "t_total:%ds ",  tempo_total);
+				font_draw_text(&calibri_36, tempo, 10, 100, 1); // + 36 sempre -> \n
+				
 				banana=!banana;
 			} else {
 				char tempo[12];
-				sprintf(tempo, "AAAA:%d",  rtt_read_timer_value(RTT));
-				tempo_total++;
-				font_draw_text(&calibri_36, tempo, 50, 100, 1); // + 36 sempre -> \n
+				sprintf(tempo, "t_tot:%d  ",  tempo_total);
+				tempo_total+=2;
+				font_draw_text(&calibri_36, tempo, 10, 100, 1); // + 36 sempre -> \n
+				sprintf(tempo, "d_tot:%f m ",  revolucoes*2*0.325*PI);
+				font_draw_text(&calibri_36, tempo, 10 , 100+ 36*1, 1); // + 36 sempre -> \n
+				sprintf(tempo, "vel_m:%f m/s ",  (revolucoes*2*0.325*PI)/tempo_total);
+				font_draw_text(&calibri_36, tempo, 10 , 100+ 36*2, 1); // + 36 sempre -> \n
 				banana = !banana;
 			}
+			
+			
 
 			f_rtt_alarme = false;
 		}
+		
+		
 
 
 	}
