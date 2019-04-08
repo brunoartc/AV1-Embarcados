@@ -81,8 +81,8 @@ volatile Bool but_status;
 
 volatile Bool f_rtt_alarme = false;
 
-botao BUT1 = { .PIO_NAME = PIOA,.PIO_ID = ID_PIOA,.PIO_IDX = 11u,.PIO_MASK = (1u << 11u),.BUT_NUM = '1' }; //botao placa para reset
-botao BUT2 = { .PIO_NAME = PIOB,.PIO_ID = ID_PIOB,.PIO_IDX = 2u,.PIO_MASK = (1u << 2u),.BUT_NUM = '2' }; //sensor
+botao BUT2 = { .PIO_NAME = PIOA,.PIO_ID = ID_PIOA,.PIO_IDX = 11u,.PIO_MASK = (1u << 11u),.BUT_NUM = '1' }; //botao placa para reset
+botao BUT1 = { .PIO_NAME = PIOB,.PIO_ID = ID_PIOB,.PIO_IDX = 2u,.PIO_MASK = (1u << 2u),.BUT_NUM = '2' }; //sensor
 botao BUT3 = { .PIO_NAME = PIOA,.PIO_ID = ID_PIOA,.PIO_IDX = 3u,.PIO_MASK = (1u << 3u),.BUT_NUM = '3' };
 
 
