@@ -14,7 +14,6 @@
 #include "sourcecodepro_28.h"
 #include "calibri_36.h"
 #include "arial_72.h"
-#include "math.h"
 
 
 
@@ -55,6 +54,7 @@ void font_draw_text(tFont *font, const char *text, int x, int y, int spacing) {
 /************************************************************************/
 /* defines                                                              */
 /************************************************************************/
+#define PI 3.14159265358979f
 
 #define APERTADO '1'
 #define LIBERADO '0'
